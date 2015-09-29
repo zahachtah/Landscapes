@@ -12,7 +12,7 @@ using ODE
 using HDF5
 using Distances
 using Distributions
-
+using ProgressMeter
 
 
 immutable par
@@ -86,10 +86,12 @@ function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,Ten
   I=Array(Float64,p.NoSites)
   SD=Array(Float64,p.NoSites)
   timed=zeros(Float64,Tend)
+  progress=Progress(Tend,1)
   X[1,:,:]=0.5/p.NoSpecies
   T=0.0
   for t=1:Tend
-    if _Save==0 println(t) end
+
+    if _Save==0 next!(progress) end
     TC=CC(t,p) # Get climate change
     SM,TotD,Dist,DS=addSouth(X,t-1,p)
     if t==p.CCstart && PoissonRand==2
@@ -231,4 +233,3 @@ end
 
 
 end
-
