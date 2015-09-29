@@ -73,11 +73,11 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   return dx
 end
 
-function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
+function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alpha::Float64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
   #getP(LandscapeNo::Int64,NoiseSeries::Int64,NoSpecies::Int64,alpha::Float64)
   srand(1234+NoSpecies+Landscape*10+repl*100+NoiseSeries*1000+Tend*10000) # sets a random sequence that is different for all parameters except PoissonRand
   r=Float64
-  p=getP(Landscape,repl,NoiseSeries,0.9)
+  p=getP(Landscape,repl,NoiseSeries,alpha)
   x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
   X=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
   IE=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
