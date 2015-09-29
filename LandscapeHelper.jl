@@ -86,7 +86,7 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,alpha::Float64)
     tempSlope=1.0
     tempGrad=20-((XY[2,:]/extent)*2-1.0)*tempSlope
 
-    p=par(NoSpecies,NoSites,NoLandscape,repl,NoNoise,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempGrad,N)
+    p=par(NoSpecies,NoSites,NoLandscape,repl,NoNoise,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
 
 end
 
