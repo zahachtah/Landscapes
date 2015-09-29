@@ -68,7 +68,7 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   ialpha=1.0-p.alpha
   # @inbounds Add after debugging
   @inbounds for i=1:p.NoSpecies #adjust for intraspecific alpha
-     dx[i]=(((1.0-(S+(1.0-p.alpha)*x[i]))-x[i])*exp(-(T-p.z[i])*(T-p.z[i])/p.TWidth)-p.m)*x[i]
+     dx[i]=((1.0-(S+(1.0-p.alpha)*x[i]))*exp(-(T-p.z[i])*(T-p.z[i])/p.TWidth)-p.m)*x[i]
   end
   return dx
 end
