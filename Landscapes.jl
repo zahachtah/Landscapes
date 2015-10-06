@@ -33,18 +33,18 @@ immutable par
   extent::Float64
   TWidth::Float64
   z::Array{Float64}
-  XY::Array{Float64,2}
-  sDist::Float64
-  D::Array{Float64,2}
+  XY::Array{Float64,2}      # Coordinates
+  sDist::Float64            # added distance to southern pop
+  D::Array{Float64,2}       # Connectivity probability to get between patches (calculated with dispersal function)
   CCstart::Int64
   CCamp::Float64
-  CCk::Float64
-  tempSlope::Float64
-  tempGrad::Array{Float64}
-  noise::Array{Float64}
+  CCk::Float64              # time of half CC after CCstart
+  tempSlope::Float64        # degrees per km
+  tempGrad::Array{Float64}  # Array of site starting temperatures
+  noise::Array{Float64}     # Noise series uploaded from a file
 end
 
-  function Base.show(io::IO, E::par)
+  function Base.show(io::IO, E::par) # funciton to display par type
     N=names(E)
     println()
     println("Simulation parameters")
@@ -76,6 +76,7 @@ end
 function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alpha::Float64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
   #getP(LandscapeNo::Int64,NoiseSeries::Int64,NoSpecies::Int64,alpha::Float64)
   srand(1234+NoSpecies+Landscape*10+repl*100+NoiseSeries*1000+Tend*10000) # sets a random sequence that is different for all parameters except PoissonRand
+  # First preallocate memory
   r=Float64
   p=getP(Landscape,repl,NoiseSeries,alpha)
   x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
