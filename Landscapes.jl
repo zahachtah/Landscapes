@@ -15,12 +15,13 @@ using Distributions
 using ProgressMeter
 
 
-immutable par
+type par
   NoSpecies::Int64
   NoSites::Int64
   NoLandscape::Int64
   repl::Int64
   NoNoise::Int64
+  Poisson::Int64
   m::Float64
   ext::Float64
   alpha::Float64
@@ -73,6 +74,71 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   return dx
 end
 
+function GoP(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
+    srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+Tend*10000) # sets a random sequence that is different for all
+      r=Float64
+    x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
+  X=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
+  IE=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
+  ISD=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
+  XCS=ones(Float64,1,p.NoSpecies,p.NoSites)
+  I=Array(Float64,p.NoSites)
+  SD=Array(Float64,p.NoSites)
+  timed=zeros(Float64,Tend)
+  progress=Progress(Tend,1)
+  X[1,:,:]=0.5/p.NoSpecies
+  T=0.0
+  for t=1:Tend
+
+        if _save==0 next!(progress) end
+    TC=CC(t,p) # Get climate change
+    SM,TotD,Dist,DS=addSouth(X,t-1,p)
+    if t==p.CCstart && PoissonRand==2
+      XCS[1,:,:]=X[max(1,t-1),:,:];
+      XCS[find(XCS.>0.0)]=1.0;
+      println("adjust XCS")
+    end
+    for j=1:p.NoSites
+      if t>1
+        SD=DS'*TotD*p.reprod*dispersal(p.XY[2,j]+p.sDist,p.dispersalAlpha,p.dispersalC)
+        I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
+        for k=1:p.NoSpecies
+          if p.Poisson>=1
+            if I[k]>0.0 #self immigration is zero
+              P=PoissonRnd(p::par,10000.0*I[k])
+              r=X[t-1,k,j]*(1-p.reprod)+P/p.seedPerBiomass
+            else
+              r=0.0
+              P=0.0
+            end
+            IE[t-1,k,j]=P #save for return value to check immigration events
+            ISD[t-1,k,j]=SD[k]
+          elseif p.Poisson==0
+            r=0.0
+          else
+            r=X[t-1,k,j]*(1-p.reprod)*p.overWinter+I[j]
+          end
+
+          x[k]=X[t-1,k,j]*(1-p.reprod)*p.overWinter+r
+          # remove call to dispersal out of loop
+        end
+      x[find(x.<p.ext)]=0.0
+      end
+      timed[t]=@elapsed tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
+      #println(yout[end][:])
+      X[t,:,j]=yout[end][:]
+    end
+  end
+    if _save==1
+    file="outData/out"*string(Landscape)*".h5"
+    A=h5open(file,"w") do file
+       write(file,"X", X)
+       end
+  else
+    return X,XCS,IE,ISD,p,timed
+  end
+end
+
 function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alpha::Float64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
   #getP(LandscapeNo::Int64,NoiseSeries::Int64,NoSpecies::Int64,alpha::Float64)
   srand(1234+NoSpecies+Landscape*10+repl*100+NoiseSeries*1000+Tend*10000) # sets a random sequence that is different for all parameters except PoissonRand
@@ -105,16 +171,17 @@ function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alp
         SD=DS'*TotD*p.reprod*dispersal(p.XY[2,j]+p.sDist,p.dispersalAlpha,p.dispersalC)
         I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
         for k=1:p.NoSpecies
-          if PoissonRand>=1
+          if p.Poisson>=1
             if I[k]>0.0 #self immigration is zero
               P=PoissonRnd(p::par,10000.0*I[k])
               r=X[t-1,k,j]*(1-p.reprod)+P/p.seedPerBiomass
             else
               r=0.0
+              P=0.0
             end
             IE[t-1,k,j]=P #save for return value to check immigration events
             ISD[t-1,k,j]=SD[k]
-          elseif PoissonRand==0
+          elseif p.Poisson==0
             r=0.0
           else
             r=X[t-1,k,j]*(1-p.reprod)*p.overWinter+I[j]
