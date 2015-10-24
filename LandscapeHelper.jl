@@ -3,26 +3,37 @@ function GetData(LandscapeNo, repl,NoiseSeries)
   XY=h5open(file,"r") do file
        read(file,"XY")
        end
+  Ext=h5open(file,"r") do file
+       read(file,"Ext")
+  end
     file="inData/Noise/N"*string(NoiseSeries)*".h5"
     N=h5open(file,"r") do file
        read(file,"N")
        end
-  return XY,N
+  return XY,N,Ext
 end
 
-function makeXYLandscape(LandscapeNo::Int64,NoSites::Int64,Ext::Float64,_save::Int64)
-  XY=rand(Float64,2,NoSites).*Ext #XY coordinates in a 0:1 range
-  if _save==1
-    if isdir("inData/L"*string(LandscapeNo))
+function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Float64,_save::Int64)
+    if NoSites>0
+        XY=rand(Float64,2,NoSites).*Ext #XY coordinates in a 0:1 range
     else
-      mkdir("inData/L"*string(LandscapeNo))
+        NoSites=abs(NoSites)
+        XY=[zeros(NoSites)'; collect(linspace(0,Ext,NoSites))']
+        
     end
-    file="inData/L"*string(LandscapeNo)*"/XY.h5"
+  if _save==1
+        if isdir("inData/Landscapes/L"*string(LandscapeNo))
+    else
+      mkdir("inData/Landscapes/L"*string(LandscapeNo))
+    end
+    file="inData/Landscapes/L"*string(LandscapeNo)*"/XY"*string(repl)*".h5"
     A=h5open(file,"w") do file
       write(file,"XY", XY)
+      write(file,"Ext", Ext)
        end
+
     for i=1:10
-      file="inData/L"*string(LandscapeNo)*"/SiteVar"*string(i)*".h5"
+      file="inData/Landscapes/L"*string(LandscapeNo)*"/SiteVar"*string(i)*".h5"
       SV=rand(Float64,1,NoSites)*2.0-1.0
       A=h5open(file,"w") do file
         write(file,"SV", SV)
@@ -62,20 +73,20 @@ function getP(NoSpecies,repl,NoSites,XY,D,extent,dispKernel,N)
 end
 
 
-function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,alpha::Float64)
+function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Poisson::Int64,alpha::Float64)
 
     NoSpecies=100
-    XY,N=GetData(NoLandscape,repl,NoNoise)
+    XY,N,Ext=GetData(NoLandscape,repl,NoNoise)
     NoSites=size(XY,2)
     m=0.05
     ext=1.0e-06
     reprod=0.05
-    dispersalAlpha=16.3179
-    dispersalC=2.0
+    dispersalAlpha=20.0
+    dispersalC=0.5
     localTvar=0.0
     overWinter=0.3
-    seedPerBiomass=10000.0*reprod
-    extent=500.0
+    seedPerBiomass=1000*100*100
+    extent=Ext
     TWidth=90.0
     z=linspace(0,40,NoSpecies)
     sDist=500/NoSites/2
@@ -83,10 +94,10 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,alpha::Float64)
     CCstart=200
     CCamp=5.0
     CCk=75.0
-    tempSlope=1.0
-    tempGrad=20-((XY[2,:]/extent)*2-1.0)*tempSlope
+    tempSlope=1.0/100000.0
+    tempGrad=20-((XY[2,:]/Ext)*2-1.0)*tempSlope*Ext
 
-    p=par(NoSpecies,NoSites,NoLandscape,repl,NoNoise,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
+    p=par(NoSpecies,NoSites,NoLandscape,repl,NoNoise,Poisson,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
 
 end
 
@@ -117,3 +128,4 @@ function extractX(X,a::Int64)
     end
   end
 end
+
