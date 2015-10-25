@@ -19,7 +19,7 @@ function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Floa
     else
         NoSites=abs(NoSites)
         XY=[zeros(NoSites)'; collect(linspace(0,Ext,NoSites))']
-        
+
     end
   if _save==1
         if isdir("inData/Landscapes/L"*string(LandscapeNo))

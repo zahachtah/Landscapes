@@ -74,7 +74,7 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   return dx
 end
 
-function GoP(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
+function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
     srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+Tend*10000) # sets a random sequence that is different for all
       r=Float64
     x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
@@ -124,7 +124,7 @@ function GoP(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
         end
       x[find(x.<p.ext)]=0.0
       end
-      timed[t]=@elapsed tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
+      tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
       #println(yout[end][:])
       X[t,:,j]=yout[end][:]
     end
@@ -135,7 +135,7 @@ function GoP(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
        write(file,"X", X)
        end
   else
-    return X,XCS,IE,ISD,p,timed
+    return X,XCS,IE,ISD
   end
 end
 
@@ -234,8 +234,7 @@ function connectivity(XY,a,c)
 end
 
 function PoissonRnd(p::par,I::Float64)
-  P=0.0
-  P=convert(Float64,rand(Poisson(I*p.seedPerBiomass)))
+  P=convert(Float64,rand(Poisson(I.*p.seedPerBiomass)))
   return P
 end
 

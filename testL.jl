@@ -1,19 +1,26 @@
-cd("/Users/raukhur/Google Drive/juliabox/Landscapes")
+cd("/Users/raukhur/Documents/Github/Landscapes")
 using Landscapes
 using Gadfly
 reload("Landscapes")
 
-# NEED TO CHECK TEMP GRADIENT PER 500 KM!!!!!!!!
+
 
 NoSpecies=100 # Set number of species
-LandscapeNo=1 #Select Landscape type
+NoLandscape=1 #Select Landscape type
 repl=1 # Select replicate of Landscape type
-NoiseSeries=1 #Select noise series for replication
+NoNoise=1 #Select noise series for replication
 Tend=600 # Length of simulation
 alpha=0.9 # Competition coefficient
 Poisson=1 # 0=No colonization, 1=Poisson colonization, 2=Poisson colonization with no traversal of species
 _save=0 #0: returns variables and does not save, 1: saves and gives no return
 
+Landscapes.makeXYLandscape(1,1,-10,10000.,1)
+Landscapes.makeXYLandscape(2,1,-10,100000.,1)
+Landscapes.makeXYLandscape(3,1,100,10000.,1)
+Landscapes.makeXYLandscape(4,1,100,100000.,1)
+
+
+p=Landscapes.getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Poisson::Int64,alpha::Float64)
 
 X,XCS,IE,ISD,p,tim=Landscapes.Go(NoSpecies,LandscapeNo,repl,NoiseSeries,Tend,Poisson,_save)
 nX,nXCS,nIE,nISD,np,ntim=Landscapes.Go(NoSpecies,LandscapeNo,repl,NoiseSeries,Tend,0,_save)
