@@ -42,4 +42,4 @@ Landscapes.Go(p)
 
 ```
 
-For both ways, if you have save=1 they are saved as outData/out(landscapeNo)_(repl).h5
+For both ways, if you have save=1 they are saved as outData/out(landscapeNo)_(repl).h5, otherwise you will get output back from the function as X=raw biomasses, XCS=binary presence before CC, IE=integer immigration events (no seeds), ISD=dispersal from south
