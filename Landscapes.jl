@@ -15,6 +15,7 @@ type par
   repl::Int64
   NoNoise::Int64
   Poisson::Int64
+  r::Float64
   m::Float64
   ext::Float64
   alpha::Float64
@@ -36,6 +37,8 @@ type par
   tempSlope::Float64        # degrees per km
   tempGrad::Array{Float64}  # Array of site starting temperatures
   noise::Array{Float64}     # Noise series uploaded from a file
+  inData::ASCIIString
+  outData::ASCIIString
 end
 
 include("LandscapeHelper.jl")
@@ -51,28 +54,28 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   return dx
 end
 
-function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
-  srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+Tend*10000) # sets a random sequence that is different for all
+function Go(p::par)
+  srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+p.Tend*10000) # sets a random sequence that is different for all
   r=Float64
   x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
-  X=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
-  IE=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
-  ISD=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
+  X=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
+  IE=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
+  ISD=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
   XCS=ones(Float64,1,p.NoSpecies,p.NoSites)
   I=Array(Float64,p.NoSites)
   SD=Array(Float64,p.NoSites)
-  timed=zeros(Float64,Tend)
-  progress=Progress(Tend,1)
+  timed=zeros(Float64,p.Tend)
+  progress=Progress(p.Tend,1)
   X[1,:,:]=0.5/p.NoSpecies
   T=0.0
   for t=1:p.Tend
-    if _save==0 next!(progress) end
+    next!(progress)
     TC=CC(t,p) # Get climate change
     SM,TotD,Dist,DS=addSouth(X,t-1,p)
-    if t==p.CCstart && PoissonRand==2
+    if t==p.CCstart && p.Poisson==2
       XCS[1,:,:]=X[max(1,t-1),:,:];
       XCS[find(XCS.>0.0)]=1.0;
-      println("adjust XCS")
+      #("adjust XCS")
     end
     for j=1:p.NoSites
       if t>1
@@ -101,16 +104,12 @@ function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
       x[find(x.<p.ext)]=0.0
       end
       tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
-      #println(yout[end][:])
       X[t,:,j]=yout[end][:]
     end
   end
-    if _save==1
-    file="outData/out"*string(Landscape)*".h5"
+    file="outData/out"*string(p.NoLandscape)*".h5"
     A=h5open(file,"w") do file
        write(file,"X", X)
-       end
-  else
     return X,XCS,IE,ISD
   end
 end
@@ -145,6 +144,11 @@ function connectivity(XY,a,c)
     end
   end
   return C
+end
+
+function connectivity(p::par)
+  p.D=connectivity(p.XY,p.dispersalAlpha,p.dispersalC)
+  return p.D
 end
 
 function PoissonRnd(p::par,I::Float64)

@@ -13,6 +13,24 @@ function GetData(LandscapeNo, repl,NoiseSeries)
   return XY,N,Ext
 end
 
+function GetData(p::par)
+  file=p.inData*"/Landscapes/L"*string(p.NoLandscape)*"/XY"*string(p.repl)*".h5"
+  p.XY=h5open(file,"r") do file
+       read(file,"XY")
+       end
+  p.NoSites=size(p.XY,2)
+  Ext=h5open(file,"r") do file
+       read(file,"Extent")
+  end
+   p.extent=Ext[1]
+    file=p.inData*"/Noise/N"*string(p.NoNoise)*".h5"
+    p.noise=h5open(file,"r") do file
+       read(file,"N")
+       end
+  p.tempGrad=20-((p.XY[2,:]/p.extent)*2-1.0)*p.tempSlope*p.extent
+  connectivity(p)
+end
+
 function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Float64,_save::Int64)
     if NoSites>0
         XY=rand(Float64,2,NoSites).*Ext #XY coordinates in a 0:1 range
@@ -66,11 +84,16 @@ function makeNoise(NoiseNo::Int64,Tend::Int64,_save::Int64)
   end
 end
 
-function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend:Int64,Poisson::Int64,alpha::Float64)
+function getP()
+  getP(1,1,1,600,1,0.8)
+end
+
+function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend::Int64,Poisson::Int64,alpha::Float64)
     NoSpecies=100
     XY,N,Ext=GetData(NoLandscape,repl,NoNoise)
     NoSites=size(XY,2)
-    m=0.05
+    r=0.1
+    m=0.05*r
     ext=1.0e-06
     reprod=0.05
     dispersalAlpha=20.0
@@ -88,7 +111,9 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend:Int64,Poisson::
     CCk=75.0
     tempSlope=1.0/100000.0
     tempGrad=20-((XY[2,:]/Ext)*2-1.0)*tempSlope*Ext
-    p=par(NoSpecies,NoSites,NoLandscape,Tend,repl,NoNoise,Poisson,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
+    inData="inData"
+    outData="outData"
+    p=par(NoSpecies,NoSites,NoLandscape,Tend,repl,NoNoise,Poisson,r,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N,inData,outData)
 end
 
 function moments(X,p)
