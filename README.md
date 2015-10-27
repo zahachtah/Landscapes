@@ -42,4 +42,4 @@ Landscapes.Go(p)
 
 ```
 
-For both ways, if you have save=1 they are saved as outData/out(landscapeNo)(repl).h5
+For both ways, if you have save=1 they are saved as outData/out(landscapeNo)_(repl).h5
