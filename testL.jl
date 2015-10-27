@@ -1,6 +1,7 @@
 cd("/Users/raukhur/Documents/Github/Landscapes")
 using Landscapes
 using Gadfly
+using Distances
 reload("Landscapes")
 
 
@@ -20,19 +21,39 @@ Landscapes.makeXYLandscape(3,1,100,10000.,1)
 Landscapes.makeXYLandscape(4,1,100,100000.,1)
 
 
-p=Landscapes.getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Poisson::Int64,alpha::Float64)
+p1=Landscapes.getP(1,1,1,1,0.8)
+X1=Landscapes.Go(p1,Tend,Poisson,_save)
+p2=Landscapes.getP(2,1,1,1,0.8)
+X2=Landscapes.Go(p2,Tend,Poisson,_save)
+p3=Landscapes.getP(3,1,1,1,0.8)
+X3=Landscapes.Go(p3,Tend,Poisson,_save)
+p4=Landscapes.getP(4,1,1,1,0.8)
+X4=Landscapes.Go(p4,Tend,Poisson,_save)
 
-X,XCS,IE,ISD,p,tim=Landscapes.Go(NoSpecies,LandscapeNo,repl,NoiseSeries,Tend,Poisson,_save)
-nX,nXCS,nIE,nISD,np,ntim=Landscapes.Go(NoSpecies,LandscapeNo,repl,NoiseSeries,Tend,0,_save)
-ntX,ntXCS,ntIE,ntISD,ntp,nttim=Landscapes.Go(NoSpecies,LandscapeNo,repl,NoiseSeries,Tend,2,_save)
-
-site=45
+X=(X3[1])
+p=p3
+site=100
 id=sortperm(p.XY[2,:][:])
-plot(layer(x=p.z,y=X[end,:,id[site]],Geom.point),layer(x=p.z,y=nX[end,:,id[site]],Geom.point,Theme(default_color=color("orange"))),layer(x=p.z,y=ntX[end,:,id[site]],Geom.point,Theme(default_color=color("green"))))
+plot(layer(x=p.z,y=X[end,:,id[site]],Geom.point))
 
-Landscapes.PoissonRnd(p,10000.0*p.reprod*Landscapes.dispersal(50.0,p.dispersalAlpha,p.dispersalC))
+p
 
-Landscapes.PoissonRand(p,0.1)
+p=p3
+  p.dispersalAlpha=500
+  p.seedPerBiomass=300*300*1000
+  p.D=Landscapes.connectivity(p.XY,p.dispersalAlpha,p.dispersalC)
+  D=pairwise(Euclidean(),p.XY,p.XY)
+  P=zeros(size(p.D))
+  N=100
+  for i=1:N
+    P+=Landscapes.PoissonRnd(p)
+  end
+  plot(layer(x=D[:]./1000, y=log10(1+p.D[:].*p.seedPerBiomass),Geom.line,Theme(default_color=color("orange"))),layer(x=(D[:]./1000),y=log10(1+P[:]/N),Geom.point))
+
+plot(layer(x=D[:], y=p.D[:]*p.seedPerBiomass,Geom.point))
+
+p
+
 ISD[find(isnan(ISD))]=0.0
 ntISD[find(isnan(ntISD))]=0.0
 spy(squeeze(sum(ISD[:,:,id]-ntISD[:,:,id],1),1))
@@ -53,7 +74,7 @@ plot(x=p.z,y=Landscapes.immigration(X[250,:,:],p,id[end])*p.reprod)
 # check default parameters (LandscapeNo::Int64,NoiseSeries::Int64,NoSpecies::Int64,alpha::Float64)
 p=LandscapesP(LandscapeNo,replicate,NoiseSeries,alpha)
 show(p)
-
+p
 # Check loading of landscapes
 XY,N=Landscapes.GetData(p.NoLandscape,p.repl,p.NoNoise)
 plot(x=XY[1,:],y=XY[2,:],Geom.point)

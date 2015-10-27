@@ -66,15 +66,7 @@ function makeNoise(NoiseNo::Int64,Tend::Int64,_save::Int64)
   end
 end
 
-function getP(NoSpecies,repl,NoSites,XY,D,extent,dispKernel,N)
-
-    p=par(NoSpecies,NoSites,0.05,0.0001,0.9,0.01,dispKernel,0,0.0,0.7,100000.0,extent.0,90.0,linspace(0,40,NoSpecies),XY,0.0,D,200,4.0,75.0,1.0,20+((XY[2,:]/extent)*2-1.0)*5,N)
-
-end
-
-
-function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Poisson::Int64,alpha::Float64)
-
+function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend:Int64,Poisson::Int64,alpha::Float64)
     NoSpecies=100
     XY,N,Ext=GetData(NoLandscape,repl,NoNoise)
     NoSites=size(XY,2)
@@ -96,13 +88,10 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Poisson::Int64,alpha
     CCk=75.0
     tempSlope=1.0/100000.0
     tempGrad=20-((XY[2,:]/Ext)*2-1.0)*tempSlope*Ext
-
-    p=par(NoSpecies,NoSites,NoLandscape,repl,NoNoise,Poisson,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
-
+    p=par(NoSpecies,NoSites,NoLandscape,Tend,repl,NoNoise,Poisson,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N)
 end
 
 function moments(X,p)
-
 T=size(X,1)
 S=size(X,2)
 N=size(X,3)
@@ -119,7 +108,6 @@ M=zeros(Float64,T,N,5)
   return M
 end
 
-
 function extractX(X,a::Int64)
   for i=1:size(X,1)
     for j=1:size(X,2)
@@ -129,3 +117,16 @@ function extractX(X,a::Int64)
   end
 end
 
+function Base.show(io::IO, E::par) # funciton to display par type
+  N=names(E)
+  println()
+  println("Simulation parameters")
+  println("--------------------------------")
+  for i in 1:length(N)
+    if (typeof(E.(N[i]))==Int64 || typeof(E.(N[i]))==Float64)
+      println(io,N[i]," (",E.(N[i]),")")
+    else
+      println(io,N[i]," (",typeof(E.(N[i])),")")
+    end
+  end
+end

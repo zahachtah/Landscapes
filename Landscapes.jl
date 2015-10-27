@@ -1,24 +1,17 @@
 module Landscapes
 export Go,GetData,addSouth,dispersal,sim, dy, immigration
-#=
-!conn-matrix in julia
-Check read in of landscapes
-Scaling of landscapes
-applying microtopology
 
-
-=#
 using ODE
 using HDF5
 using Distances
 using Distributions
 using ProgressMeter
 
-
 type par
   NoSpecies::Int64
   NoSites::Int64
   NoLandscape::Int64
+  Tend::Int64
   repl::Int64
   NoNoise::Int64
   Poisson::Int64
@@ -45,28 +38,12 @@ type par
   noise::Array{Float64}     # Noise series uploaded from a file
 end
 
-  function Base.show(io::IO, E::par) # funciton to display par type
-    N=names(E)
-    println()
-    println("Simulation parameters")
-    println("--------------------------------")
-    for i in 1:length(N)
-      if (typeof(E.(N[i]))==Int64 || typeof(E.(N[i]))==Float64)
-        println(io,N[i]," (",E.(N[i]),")")
-      else
-        println(io,N[i]," (",typeof(E.(N[i])),")")
-      end
-    end
-  end
-
 include("LandscapeHelper.jl")
 
 function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   dx=zeros(Float64,length(x))
   S::Float64
-  ialpha::Float64
   S=sum(x)*p.alpha
-  ialpha=1.0-p.alpha
   # @inbounds Add after debugging
   @inbounds for i=1:p.NoSpecies #adjust for intraspecific alpha
      dx[i]=((1.0-(S+(1.0-p.alpha)*x[i]))*exp(-(T-p.z[i])*(T-p.z[i])/p.TWidth)-p.m)*x[i]
@@ -75,9 +52,9 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
 end
 
 function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
-    srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+Tend*10000) # sets a random sequence that is different for all
-      r=Float64
-    x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
+  srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+Tend*10000) # sets a random sequence that is different for all
+  r=Float64
+  x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
   X=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
   IE=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
   ISD=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
@@ -88,9 +65,8 @@ function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
   progress=Progress(Tend,1)
   X[1,:,:]=0.5/p.NoSpecies
   T=0.0
-  for t=1:Tend
-
-        if _save==0 next!(progress) end
+  for t=1:p.Tend
+    if _save==0 next!(progress) end
     TC=CC(t,p) # Get climate change
     SM,TotD,Dist,DS=addSouth(X,t-1,p)
     if t==p.CCstart && PoissonRand==2
@@ -140,72 +116,10 @@ function Go(p::par,Tend::Int64,PoissonRand::Int64,_save::Int64)
 end
 
 function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alpha::Float64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
-  #getP(LandscapeNo::Int64,NoiseSeries::Int64,NoSpecies::Int64,alpha::Float64)
-  srand(1234+NoSpecies+Landscape*10+repl*100+NoiseSeries*1000+Tend*10000) # sets a random sequence that is different for all parameters except PoissonRand
-  # First preallocate memory
-  r=Float64
-  p=getP(Landscape,repl,NoiseSeries,alpha)
-  x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
-  X=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
-  IE=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
-  ISD=zeros(Float64,Tend,p.NoSpecies,p.NoSites)
-  XCS=ones(Float64,1,p.NoSpecies,p.NoSites)
-  I=Array(Float64,p.NoSites)
-  SD=Array(Float64,p.NoSites)
-  timed=zeros(Float64,Tend)
-  progress=Progress(Tend,1)
-  X[1,:,:]=0.5/p.NoSpecies
-  T=0.0
-  for t=1:Tend
-
-    if _Save==0 next!(progress) end
-    TC=CC(t,p) # Get climate change
-    SM,TotD,Dist,DS=addSouth(X,t-1,p)
-    if t==p.CCstart && PoissonRand==2
-      XCS[1,:,:]=X[max(1,t-1),:,:];
-      XCS[find(XCS.>0.0)]=1.0;
-      println("adjust XCS")
-    end
-    for j=1:p.NoSites
-      if t>1
-        SD=DS'*TotD*p.reprod*dispersal(p.XY[2,j]+p.sDist,p.dispersalAlpha,p.dispersalC)
-        I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
-        for k=1:p.NoSpecies
-          if p.Poisson>=1
-            if I[k]>0.0 #self immigration is zero
-              P=PoissonRnd(p::par,10000.0*I[k])
-              r=X[t-1,k,j]*(1-p.reprod)+P/p.seedPerBiomass
-            else
-              r=0.0
-              P=0.0
-            end
-            IE[t-1,k,j]=P #save for return value to check immigration events
-            ISD[t-1,k,j]=SD[k]
-          elseif p.Poisson==0
-            r=0.0
-          else
-            r=X[t-1,k,j]*(1-p.reprod)*p.overWinter+I[j]
-          end
-
-          x[k]=X[t-1,k,j]*(1-p.reprod)*p.overWinter+r
-          # remove call to dispersal out of loop
-        end
-      x[find(x.<p.ext)]=0.0
-      end
-      timed[t]=@elapsed tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
-      #println(yout[end][:])
-      X[t,:,j]=yout[end][:]
-    end
-  end
-  if _Save==1
-    file="outData/out"*string(Landscape)*".h5"
-    A=h5open(file,"w") do file
-       write(file,"X", X)
-       end
-  else
-    return X,XCS,IE,ISD,p,timed
-  end
-
+  p=getP(Landscape,repl,NoiseSeries,Tend,alpha)
+  p.Poisson=PoissonRand
+  X,XCS,IE,ISD,p,timed=Go(p,_save)
+  return X,XCS,IE,ISD,p,timed
 end
 
 function sim(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
@@ -235,6 +149,16 @@ end
 
 function PoissonRnd(p::par,I::Float64)
   P=convert(Float64,rand(Poisson(I.*p.seedPerBiomass)))
+  return P
+end
+
+function PoissonRnd(p::par)
+  P=similar(p.D)
+  for i=1:size(p.D,1)
+    for j=1:size(p.D,2)
+      P[i,j]=convert(Float64,rand(Poisson(p.D[i,j].*p.seedPerBiomass)))
+    end
+  end
   return P
 end
 
@@ -296,7 +220,5 @@ T=0.0
   end
   return SM,T,Dist,DS
 end
-
-
 
 end
