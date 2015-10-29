@@ -104,7 +104,7 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend::Int64,Poisson:
     extent=Ext
     TWidth=90.0
     z=linspace(0,40,NoSpecies)
-    sDist=500/NoSites/2
+    sDist=0.
     C=connectivity(XY,dispersalAlpha,dispersalC)
     CCstart=200
     CCamp=5.0
@@ -155,3 +155,12 @@ function Base.show(io::IO, E::par) # funciton to display par type
     end
   end
 end
+
+function getResult(L,P,f)
+      file=f*"/out"*string(L)*"_"*string(P)*".h5"
+    X=h5open(file,"r") do file
+       read(file,"X")
+       end
+  return X
+end
+

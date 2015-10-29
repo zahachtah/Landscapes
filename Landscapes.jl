@@ -66,13 +66,14 @@ function Go(p::par)
   SD=Array(Float64,p.NoSites)
   timed=zeros(Float64,p.Tend)
   progress=Progress(p.Tend,1)
+  Tactual=zeros(Float64,p.Tend,p.NoSites)
   X[1,:,:]=0.5/p.NoSpecies
   T=0.0
   for t=1:p.Tend
     next!(progress)
     TC=CC(t,p) # Get climate change
     SM,TotD,Dist,DS=addSouth(X,t-1,p)
-    if t==p.CCstart && p.Poisson==2
+    if t==p.CCstart
       XCS[1,:,:]=X[max(1,t-1),:,:];
       XCS[find(XCS.>0.0)]=1.0;
       #("adjust XCS")
@@ -80,7 +81,11 @@ function Go(p::par)
     for j=1:p.NoSites
       if t>1
         SD=DS'*TotD*p.reprod*dispersal(p.XY[2,j]+p.sDist,p.dispersalAlpha,p.dispersalC)
-        I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
+        if p.Poisson==2
+          I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
+        else
+          I=immigration(X[t-1,:,:],p,j)*p.reprod+SD
+        end
         for k=1:p.NoSpecies
           if p.Poisson>=1
             if I[k]>0.0 #self immigration is zero
@@ -103,15 +108,18 @@ function Go(p::par)
         end
       x[find(x.<p.ext)]=0.0
       end
-      tout,yout=sim(TC+p.noise[t]+p.tempGrad[j],p,x[:],[0.0;180.0])
+      Tactual[t,j]=TC+p.noise[t]+p.tempGrad[j]
+      tout,yout=sim(Tactual[t,j],p,x[:],[0.0;180.0])
       X[t,:,j]=yout[end][:]
     end
   end
-    file="outData/out"*string(p.NoLandscape)*".h5"
+    file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*".h5"
     A=h5open(file,"w") do file
        write(file,"X", X)
-    return X,XCS,IE,ISD
+       write(file,"Tactual", Tactual)
+       write(file,"XCS", XCS)
   end
+  return X,XCS,IE,ISD
 end
 
 function Go(NoSpecies::Int64,Landscape::Int64,repl::Int64,NoiseSeries::Int64,alpha::Float64,Tend::Int64,PoissonRand::Int64,_Save::Int64)
