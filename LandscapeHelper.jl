@@ -49,14 +49,6 @@ function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Floa
       write(file,"XY", XY)
       write(file,"Ext", Ext)
        end
-
-    for i=1:10
-      file="inData/Landscapes/L"*string(LandscapeNo)*"/SiteVar"*string(i)*".h5"
-      SV=rand(Float64,1,NoSites)*2.0-1.0
-      A=h5open(file,"w") do file
-        write(file,"SV", SV)
-      end
-    end
   else
     return XY
   end
