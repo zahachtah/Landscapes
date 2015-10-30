@@ -47,7 +47,7 @@ function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Floa
     file="inData/Landscapes/L"*string(LandscapeNo)*"/XY"*string(repl)*".h5"
     A=h5open(file,"w") do file
       write(file,"XY", XY)
-      write(file,"Ext", Ext)
+      write(file,"Extent", Ext)
        end
   else
     return XY
