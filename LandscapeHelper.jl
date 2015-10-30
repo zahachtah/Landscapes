@@ -36,7 +36,7 @@ function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Floa
         XY=rand(Float64,2,NoSites).*Ext #XY coordinates in a 0:1 range
     else
         NoSites=abs(NoSites)
-        XY=[zeros(NoSites)'; collect(linspace(0,Ext,NoSites))']
+        XY=[zeros(NoSites)'; collect(linspace(0,Ext,NoSites))'] # for making 1D landscapes
 
     end
   if _save==1

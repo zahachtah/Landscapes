@@ -37,7 +37,7 @@ type par
   tempSlope::Float64        # degrees per km
   tempGrad::Array{Float64}  # Array of site starting temperatures
   noise::Array{Float64}     # Noise series uploaded from a file
-  inData::ASCIIString
+  inData::ASCIIString       # Assign input folder path
   outData::ASCIIString
 end
 
