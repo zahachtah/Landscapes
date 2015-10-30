@@ -4,7 +4,7 @@ function GetData(LandscapeNo, repl,NoiseSeries)
        read(file,"XY")
        end
   Ext=h5open(file,"r") do file
-       read(file,"Ext")
+       read(file,"Extent")
   end
     file="inData/Noise/N"*string(NoiseSeries)*".h5"
     N=h5open(file,"r") do file
@@ -31,12 +31,12 @@ function GetData(p::par)
   connectivity(p)
 end
 
-function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Float64,_save::Int64)
+function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Extent::Float64,_save::Int64)
     if NoSites>0
-        XY=rand(Float64,2,NoSites).*Ext #XY coordinates in a 0:1 range
+        XY=rand(Float64,2,NoSites).*Extent #XY coordinates in a 0:1 range
     else
         NoSites=abs(NoSites)
-        XY=[zeros(NoSites)'; collect(linspace(0,Ext,NoSites))'] # for making 1D landscapes
+        XY=[zeros(NoSites)'; collect(linspace(0,Extent,NoSites))'] # for making 1D landscapes
 
     end
   if _save==1
@@ -47,7 +47,7 @@ function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Ext::Floa
     file="inData/Landscapes/L"*string(LandscapeNo)*"/XY"*string(repl)*".h5"
     A=h5open(file,"w") do file
       write(file,"XY", XY)
-      write(file,"Extent", Ext)
+      write(file,"Extent", Extent)
        end
   else
     return XY
