@@ -54,6 +54,13 @@ function dy(t::Float64,x::Array{Float64,1},T::Float64,p::par)
   return dx
 end
 
+function simE(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
+  for i in 0:180
+    x=x.+dy(0.0,x,T,p)
+  end
+  return 0.0,x
+end
+
 function Go(p::par)
   srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+p.Tend*10000) # sets a random sequence that is different for all
   r=Float64

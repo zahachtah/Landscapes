@@ -10,7 +10,6 @@ Landscapes.GetData(p)
 
 plot(x=p.XY[1,:],y=p.XY[2,:])
 out=Landscapes.Go(p)
-
-
+pwd()
+readdir()
 p.tempGrad
-
