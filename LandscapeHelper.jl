@@ -29,6 +29,7 @@ function GetData(p::par)
        end
   p.tempGrad=20-((p.XY[2,:]/p.extent)*2-1.0)*p.tempSlope*p.extent
   connectivity(p)
+  return p
 end
 
 function makeXYLandscape(LandscapeNo::Int64,repl::Int64,NoSites::Int64,Extent::Float64,_save::Int64)
@@ -153,6 +154,12 @@ function getResult(L,P,f)
     X=h5open(file,"r") do file
        read(file,"X")
        end
-  return X
+      xcc=h5open(file,"r") do file
+       read(file,"XCS")
+       end
+        Tactual=h5open(file,"r") do file
+       read(file,"Tactual")
+       end
+  return X,xcc,Tactual
 end
 

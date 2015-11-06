@@ -61,6 +61,24 @@ function simE(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
   return 0.0,x
 end
 
+function Go(L::Int64,T::Int64)
+  p=Landscapes.getP()
+  p.NoLandscape=L
+  p.inData="/Users/Raukhur/Documents/Github/Landscapes/inData"
+  p.outData="/Users/Raukhur/Documents/Github/Landscapes/outData"
+  p=Landscapes.GetData(p)
+  if L>4
+    p.XY=p.XY*1000
+    p.extent=p.extent*1000
+  end
+  p.Tend=T
+  out=Landscapes.Go(p)
+  p.Poisson=2
+  out=Landscapes.Go(p)
+  p.Poisson=0
+  out=Landscapes.Go(p)
+end
+
 function Go(p::par)
   srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+p.Tend*10000) # sets a random sequence that is different for all
   r=Float64
@@ -125,6 +143,8 @@ function Go(p::par)
        write(file,"X", X)
        write(file,"Tactual", Tactual)
        write(file,"XCS", XCS)
+       write(file,"ISD", ISD)
+       write(file,"IE", IE)
   end
   return X,XCS,IE,ISD
 end
