@@ -29,6 +29,9 @@ function GetData(p::par)
        end
   p.tempGrad=20-((p.XY[2,:]/p.extent)*2-1.0)*p.tempSlope*p.extent
   connectivity(p)
+  D=pairwise(Euclidean(),p.XY,p.XY)
+  D=D+eye(D)*maximum(D)
+  p.sDist=minimum(p.XY[2,:])-mean(minimum(D,1))
   return p
 end
 
@@ -87,7 +90,7 @@ function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend::Int64,Poisson:
     NoSites=size(XY,2)
     r=0.1
     m=0.05*r
-    ext=1.0e-06
+    ext=1.0e-09 #one seed per total plant biomass of wetland
     reprod=0.05
     dispersalAlpha=20.0
     dispersalC=0.5
@@ -114,6 +117,7 @@ T=size(X,1)
 S=size(X,2)
 N=size(X,3)
 M=zeros(Float64,T,N,5)
+X[isnan(X)]=0.0
   for t=1:T
     for n=1:N
       M[t,n,1]=sum(X[t,:,n])
@@ -160,6 +164,8 @@ function getResult(L,P,f)
         Tactual=h5open(file,"r") do file
        read(file,"Tactual")
        end
-  return X,xcc,Tactual
+          SDX=h5open(file,"r") do file
+       read(file,"SDX")
+       end
+  return X,xcc,Tactual,SDX
 end
-

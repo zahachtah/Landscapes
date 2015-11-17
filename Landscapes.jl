@@ -71,6 +71,8 @@ function Go(L::Int64,T::Int64)
     p.XY=p.XY*1000
     p.extent=p.extent*1000
   end
+  p.seedPerBiomass=1/Landscapes.dispersal(10000.0,5000.0,0.5)
+  p.dispersalAlpha=5000.0
   p.Tend=T
   out=Landscapes.Go(p)
   p.Poisson=2
@@ -87,6 +89,7 @@ function Go(p::par)
   IE=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
   ISD=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
   XCS=ones(Float64,1,p.NoSpecies,p.NoSites)
+  SDX=zeros(Float64,p.Tend,p.NoSpecies)
   I=Array(Float64,p.NoSites)
   SD=Array(Float64,p.NoSites)
   timed=zeros(Float64,p.Tend)
@@ -98,6 +101,7 @@ function Go(p::par)
     next!(progress)
     TC=CC(t,p) # Get climate change
     SM,TotD,Dist,DS=addSouth(X,t-1,p)
+    SDX[t,:]=DS'*TotD
     if t==p.CCstart
       XCS[1,:,:]=X[max(1,t-1),:,:];
       XCS[find(XCS.>0.0)]=1.0;
@@ -105,24 +109,25 @@ function Go(p::par)
     end
     for j=1:p.NoSites
       if t>1
-        SD=DS'*TotD*p.reprod*dispersal(p.XY[2,j]+p.sDist,p.dispersalAlpha,p.dispersalC)
+        SD=DS'*TotD*p.reprod*dispersal(abs(p.XY[2,j]-p.sDist),p.dispersalAlpha,p.dispersalC)
         if p.Poisson==2
           I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)*p.reprod+SD
         else
           I=immigration(X[t-1,:,:],p,j)*p.reprod+SD
         end
         for k=1:p.NoSpecies
-          if p.Poisson>=1
+          if p.Poisson>=1 || t<=p.CCstart
             if I[k]>0.0 #self immigration is zero
-              P=PoissonRnd(p::par,10000.0*I[k])
-              r=X[t-1,k,j]*(1-p.reprod)+P/p.seedPerBiomass
+              # Maybe separate dispersal scaling parameter from seedBiomass
+              P=PoissonRnd(p::par,I[k])
+              r=X[t-1,k,j]*(1-p.reprod)+P*p.ext #p.ext=min propagule biomass
             else
               r=0.0
               P=0.0
             end
             IE[t-1,k,j]=P #save for return value to check immigration events
             ISD[t-1,k,j]=SD[k]
-          elseif p.Poisson==0
+          elseif p.Poisson==0 && t>p.CCstart
             r=0.0
           else
             r=X[t-1,k,j]*(1-p.reprod)*p.overWinter+I[j]
@@ -145,6 +150,8 @@ function Go(p::par)
        write(file,"XCS", XCS)
        write(file,"ISD", ISD)
        write(file,"IE", IE)
+       write(file,"SDX", SDX)
+      write(file,"sDist",p.sDist)
   end
   return X,XCS,IE,ISD
 end
@@ -226,7 +233,8 @@ T=0.0
   t=max(tt,1)
   for i=1:p.NoSites
     M=0.0
-    M=sum(X[t,:,i].*p.z')/sum(X[t,:,i])
+    #M=sum(X[t,:,i].*p.z')/sum(X[t,:,i])
+    M=p.z[indmax(X[t,:,i])]
     T=T+sum(X[t,:,i])
     S[i,:]=M
     id=indmax(X[t,:,i])
@@ -244,19 +252,27 @@ T=0.0
   end
   T=T/p.NoSites
   reg=[p.XY[2,:],ones(Float64,p.NoSites,1)']'\S
-  SM=reg[2]+(1+p.sDist)*reg[1] #CHECK THAT THIS IS RIGHT
+  SM=reg[2]+p.sDist*reg[1] #CHECK THAT THIS IS RIGHT
   Dist=Dist./N
   idm=indmin((p.z.-SM).^2)
-  for i=1:idm
-    if p.NoSpecies/2+1-(idm-i)>=1
-      DS[i]=Dist[p.NoSpecies/2+1-(idm-i)]
+  if p.z[idm]>SM
+    idm=idm-1
+  end
+  for i=1:p.NoSpecies
+    if idm-50+i>0 && idm-50+i<=p.NoSpecies
+      DS[idm-50+i]=Dist[i]*(SM-p.z[idm])+Dist[i+1]*(1-(SM-p.z[idm]))
     end
   end
-  for i=idm+1:p.NoSpecies
-    if i-idm<p.NoSpecies/2
-      DS[i]=Dist[p.NoSpecies/2+i-idm+1]
-    end
-  end
+  #for i=1:idm
+  #  if p.NoSpecies/2+1-(idm-i)>=1
+  #    DS[i]=Dist[p.NoSpecies/2+1-(idm-i)]
+  #  end
+  #end
+  #for i=idm+1:p.NoSpecies
+  #  if i-idm<p.NoSpecies/2
+  #    DS[i]=Dist[p.NoSpecies/2+i-idm+1]
+  #  end
+  #end
   return SM,T,Dist,DS
 end
 
