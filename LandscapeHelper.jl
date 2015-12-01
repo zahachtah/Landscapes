@@ -86,30 +86,30 @@ end
 
 function getP(NoLandscape::Int64,repl::Int64,NoNoise::Int64,Tend::Int64,Poisson::Int64,alpha::Float64)
     NoSpecies=100
-    XY,N,Ext=GetData(NoLandscape,repl,NoNoise)
+    XY,N,extent=GetData(NoLandscape,repl,NoNoise)
     NoSites=size(XY,2)
     r=0.1
     m=0.05*r
-    ext=1.0e-09 #one seed per total plant biomass of wetland
+    ext=1.0e-10 #one seed per total plant biomass of wetland
     reprod=0.05
     dispersalAlpha=20.0
     dispersalC=0.5
-    localTvar=0.0
+    LDDED=0.0
+    LDDVD=0.0
     overWinter=0.3
     seedPerBiomass=1000*100*100
-    extent=Ext
     TWidth=90.0
-    z=linspace(0,40,NoSpecies)
+    z=collect(linspace(0,40,NoSpecies))
     sDist=0.
     C=connectivity(XY,dispersalAlpha,dispersalC)
     CCstart=200
     CCamp=5.0
     CCk=75.0
     tempSlope=1.0/100000.0
-    tempGrad=20-((XY[2,:]/Ext)*2-1.0)*tempSlope*Ext
+    tempGrad=20-((XY[2,:]/extent)*2-1.0)*tempSlope*extent
     inData="inData"
     outData="outData"
-    p=par(NoSpecies,NoSites,NoLandscape,Tend,repl,NoNoise,Poisson,r,m,ext,alpha,reprod,dispersalAlpha,dispersalC,localTvar,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N,inData,outData)
+    p=par(NoSpecies,NoSites,NoLandscape,Tend,repl,NoNoise,Poisson,r,m,ext,alpha,reprod,dispersalAlpha,dispersalC,LDDED,LDDVD,overWinter,seedPerBiomass,extent,TWidth,z,XY,sDist,C,CCstart,CCamp,CCk,tempSlope,tempGrad,N,inData,outData)
 end
 
 function moments(X,p)
@@ -140,7 +140,7 @@ function extractX(X,a::Int64)
 end
 
 function Base.show(io::IO, E::par) # funciton to display par type
-  N=names(E)
+  N=fieldnames(E)
   println()
   println("Simulation parameters")
   println("--------------------------------")
@@ -167,5 +167,11 @@ function getResult(L,P,f)
           SDX=h5open(file,"r") do file
        read(file,"SDX")
        end
-  return X,xcc,Tactual,SDX
+       IE=h5open(file,"r") do file
+        read(file,"IE")
+      end
+      ISD=h5open(file,"r") do file
+       read(file,"IE")
+     end
+  return X,xcc,Tactual,SDX,IE,ISD
 end
