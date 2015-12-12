@@ -79,6 +79,7 @@ function Go(p::par)
   srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+p.Tend*10000) # sets a random sequence that is different for all
   r=Float64
   LDDf=Float64
+  LIE=Float64[]
   x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
   X=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
   IE=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
@@ -129,6 +130,9 @@ function Go(p::par)
             end
             IE[t-1,k,j]=P #save for return value to check immigration events
             ISD[t-1,k,j]=SD[k]
+            if P>0 && t<=p.CCstart && SCX[end,j,k]>0.0
+              push!(LIE, [t,j,k]...)
+            end
           elseif p.Poisson==0 && t>p.CCstart
             r=0.0
           else
@@ -145,15 +149,16 @@ function Go(p::par)
       X[t,:,j]=yout
     end
   end
+    M=moments(X,p)
     file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*".h5"
     A=h5open(file,"w")
-       A["X","compress",3]=X
+       A["M","compress",3]=M
        A["Tactual","compress",3]=Tactual
-       A["XCS","compress",3]=XCS
-       A["ISD","compress",3]=ISD
-       A["IE","compress",3]=IE
-       A["SDX","compress",3]=SDX
-       A["sDist","compress",3]=p.sDist
+       A["LIE","compress",3]=LIE
+       #A["ISD","compress",3]=ISD
+       #A["IE","compress",3]=IE
+       #A["SDX","compress",3]=SDX
+       #A["sDist","compress",3]=p.sDist
     close(A)
   return X,XCS,IE,ISD
 end
