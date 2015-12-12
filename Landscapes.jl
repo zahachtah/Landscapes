@@ -88,6 +88,7 @@ function Go(p::par)
   SDX=zeros(Float64,p.Tend,p.NoSpecies)
   I=Array(Float64,p.NoSites)
   SD=Array(Float64,p.NoSites)
+  SM=Array(Float64,p.Tend)
   timed=zeros(Float64,p.Tend)
   Tactual=zeros(Float64,p.Tend,p.NoSites)
   X[1,:,:]=0.5/p.NoSpecies
@@ -98,7 +99,7 @@ function Go(p::par)
     TC=CC(t,p)
 
     # Get Distribution coming from south "mainland"
-    SM,TotD,Dist,DS=southDist(X,t-1,p)
+    SM[t],TotD,Dist,DS=southDist(X,t-1,p)
     SDX[t,:]=DS'*TotD
 
     # Remove traversing species
@@ -115,7 +116,7 @@ function Go(p::par)
         I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)+SD
 
         if p.LDDED>0.0
-          I=I+immigrationLDD(X[t-1,:,:].*XCS[end,:,:],p,j)+SD
+          I=I+immigrationLDD(X[t-1,:,:].*XCS[end,:,:],p,j)
         end
 
         for k=1:p.NoSpecies
@@ -145,21 +146,21 @@ function Go(p::par)
       x[find(x.<p.ext)]=0.0
       end
       Tactual[t,j]=TC+p.noise[t]+p.tempGrad[j]
-      tout,yout=sim(Tactual[t,j],p,x[:],[0.0;180.0])
+      tout,yout=simE(Tactual[t,j],p,x[:],[0.0;180.0])
       X[t,:,j]=yout
     end
   end
-    M=moments(X,p)
-    file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*".h5"
-    A=h5open(file,"w")
-       A["M","compress",3]=M
-       A["Tactual","compress",3]=Tactual
-       A["LIE","compress",3]=LIE
-       #A["ISD","compress",3]=ISD
-       #A["IE","compress",3]=IE
-       #A["SDX","compress",3]=SDX
-       #A["sDist","compress",3]=p.sDist
-    close(A)
+  M=moments(X,p)
+  file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*".h5"
+  A=h5open(file,"w")
+     A["M","compress",3]=M
+     A["Tactual","compress",3]=Tactual
+     A["LIE","compress",3]=LIE
+     #A["ISD","compress",3]=ISD
+     #A["IE","compress",3]=IE
+     #A["SDX","compress",3]=SDX
+     #A["sDist","compress",3]=p.sDist
+  close(A)
   return X,XCS,IE,ISD
 end
 
@@ -169,12 +170,6 @@ function sim(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
   return tout,yout
 end
 
-function simE(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
-  for t in tr
-    x=max(0,x+dy(t,x,T,p).*x)
-  end
-  return 1.0,x
-end
 
 function CC(t,p)
   TC=p.CCamp*max(0.0,t-p.CCstart)^2/(p.CCk^2+max(0.0,t-p.CCstart)^2)
@@ -286,12 +281,12 @@ t=max(tt,1)
   T=T/p.NoSites
   reg=[p.XY[2,:];ones(Float64,p.NoSites,1)']'\S
 
-  Xdist=collect(linspace(0.0,100000.0,round(p.NoSpecies/p.extent*100000)))
+  Xdist=collect(linspace(abs(p.sDist),100000.0,convert(Int64,(round(100000/abs(p.sDist))))))
   for j=1:length(Xdist)
-    dp=dispersal(abs(p.XY[2,1]+p.sDist-Xdist[j]),p.dispersalAlpha,p.dispersalC)
+    dp=dispersal(abs(Xdist[j]),p.dispersalAlpha,p.dispersalC)
     if p.LDDED>0.0
       LDDf=1/dispersal(p.LDDED,p.LDDVD,p.dispersalC)/p.seedPerBiomass
-      dp=dp+LDDf*dispersal(abs(p.XY[2,1]+p.sDist-Xdist[j]),p.LDDVD,p.dispersalC)
+      dp=dp+LDDf*dispersal(abs(Xdist[j]),p.LDDVD,p.dispersalC)
     end
     SM=reg[2]+(p.sDist-Xdist[j])*reg[1]
 
@@ -301,7 +296,7 @@ t=max(tt,1)
     end
     for i=1:p.NoSpecies
       if idm-50+i>0 && idm-50+i<=p.NoSpecies
-        DS[idm-50+i]=DS[idm-50+i]+Dist[i]*(SM-p.z[idm])+Dist[i+1]*(1-(SM-p.z[idm]))
+        DS[idm-50+i]=DS[idm-50+i]+dp*(Dist[i]*(SM-p.z[idm])+Dist[i+1]*(1-(SM-p.z[idm])))
       end
     end
   end
@@ -310,12 +305,12 @@ t=max(tt,1)
 end
 
 function addSouth(D,j,p)
-  return D.*dispersal(abs(p.XY[2,j]+p.sDist),p.dispersalAlpha,p.dispersalC)
+  return D.*dispersal(abs(p.XY[2,j]-p.sDist),p.dispersalAlpha,p.dispersalC)
 end
 
 function addSouthLDD(D,j,p)
   LDDf=1/dispersal(p.LDDED,p.LDDVD,p.dispersalC)/p.seedPerBiomass
-  return D.*LDDf*dispersal(abs(p.XY[2,j]+p.sDist),p.LDDVD,p.dispersalC)
+  return D.*LDDf*dispersal(abs(p.XY[2,j]-p.sDist),p.LDDVD,p.dispersalC)
 end
 
 end
