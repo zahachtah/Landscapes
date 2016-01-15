@@ -181,7 +181,7 @@ close(A)
   p.Poisson=M[i,6]
   p.inData=inData
   p.outData=outData*"/"*string(i)*".h5"
-  if M[i,1]=2
+  if M[i,1]==2
      p.r=0.01
      p.m=0.0005
   end
