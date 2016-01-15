@@ -79,7 +79,7 @@ function Go(p::par)
   srand(1234+p.NoSpecies+p.NoLandscape*10+p.repl*100+p.NoNoise*1000+p.Tend*10000) # sets a random sequence that is different for all
   r=Float64
   LDDf=Float64
-  LIE=Float64[]
+  LIE=Int64[]
   x=zeros(Float64,p.NoSpecies,1)+0.5/p.NoSpecies
   X=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
   IE=zeros(Float64,p.Tend,p.NoSpecies,p.NoSites)
@@ -93,16 +93,15 @@ function Go(p::par)
   Tactual=zeros(Float64,p.Tend,p.NoSites)
   X[1,:,:]=0.5/p.NoSpecies
   T=0.0
-
   for t=1:p.Tend
     # Get climate change
     TC=CC(t,p)
-
+                
     # Get Distribution coming from south "mainland"
     SM[t],TotD,Dist,DS=southDist(X,t-1,p)
     SDX[t,:]=DS'*TotD
 
-    # Remove traversing species
+    # Remove traversing species if Poisson==2
     if t==p.CCstart && p.Poisson==2
       XCS[1,:,:]=mean(X[p.CCstart-26:p.CCstart-1,:,:],1); ## Better average over last stable 25 years !!
       XCS[find(XCS.>0.0)]=1.0;
@@ -115,14 +114,9 @@ function Go(p::par)
 
         I=immigration(X[t-1,:,:].*XCS[end,:,:],p,j)+SD
 
-        if p.LDDED>0.0
-          I=I+immigrationLDD(X[t-1,:,:].*XCS[end,:,:],p,j)
-        end
-
         for k=1:p.NoSpecies
-          if p.Poisson>=1 || t<=p.CCstart
-            if I[k]>0.0 #self immigration is zero
-              # Maybe separate dispersal scaling parameter from seedBiomass
+          if p.Poisson>=1
+            if I[k]>0.0
               P=PoissonRnd(p::par,I[k]*p.seedPerBiomass)
               r=P*p.ext #p.ext=min propagule biomass
             else
@@ -131,37 +125,81 @@ function Go(p::par)
             end
             IE[t-1,k,j]=P #save for return value to check immigration events
             ISD[t-1,k,j]=SD[k]
-            if P>0 && t<=p.CCstart && SCX[end,j,k]>0.0
-              push!(LIE, [t,j,k]...)
-            end
-          elseif p.Poisson==0 && t>p.CCstart
+
+          elseif p.Poisson==0
             r=0.0
           else
-            r=X[t-1,k,j]*p.overWinter+I[j]
+            r=0.0
           end
-
+                            
+          ## Calculate between season change
           x[k]=X[t-1,k,j]*p.overWinter+r
-          # remove call to dispersal out of loop
+          
+          ## saves immigration events for later study
+          if t>p.CCstart && X[t-1,k,j]==0.0 && x[k]>0.0
+            push!(LIE, [t,j,k]...)
+          end
+                            
         end
-      x[find(x.<p.ext)]=0.0
+                        
+        ## Kill biomass less than minimum propagule size                 
+        x[find(x.<p.ext)]=0.0
       end
       Tactual[t,j]=TC+p.noise[t]+p.tempGrad[j]
+                    
+      ## Calculate within season              
       tout,yout=simE(Tactual[t,j],p,x[:],[0.0;180.0])
       X[t,:,j]=yout
     end
   end
   M=moments(X,p)
-  file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*".h5"
-  A=h5open(file,"w")
-     A["M","compress",3]=M
-     A["Tactual","compress",3]=Tactual
-     A["LIE","compress",3]=LIE
+  #file=p.outData*"/out"*string(p.NoLandscape)*"_"*string(p.Poisson)*"_"*string(p.repl)".h5"
+  A=h5open(p.outData,"w")
+     A["M","compress",3]=convert(Array{Float32,3},M)
+     A["Tactual","compress",3]=convert(Array{Float32,2},Tactual)
+     A["LIE","compress",3]=reshape(LIE,(3,div(length(LIE),3)))
+     A["END","compress",3]=convert(Array{Float32,2},squeeze(X[end,:,:],1))
      #A["ISD","compress",3]=ISD
      #A["IE","compress",3]=IE
      #A["SDX","compress",3]=SDX
      #A["sDist","compress",3]=p.sDist
   close(A)
   return X,XCS,IE,ISD
+end
+
+function RunAll(i,inData,outData)
+#Read M
+A=h5open(inData*"/M.h5","r")
+  M=read(A,"M")
+close(A)
+
+
+  p=Landscapes.getP()
+  p.NoLandscape=M[i,4]
+  println(M[i,:])
+  p.Tend=3000
+  p.Poisson=M[i,6]
+  p.inData=inData
+  p.outData=outData*"/"*string(i)*".h5"
+  if M[i,1]=2
+     p.r=0.01
+     p.m=0.0005
+  end
+  if M[i,2]==1 #Set alpha
+    p.alpha=0.8
+  else
+    p.alpha=0.5
+  end
+
+  p.repl=M[i,3] #set replicate
+  p.NoNoise=M[i,3]
+  if M[i,5]==2 #Set alpha
+    p.LDDED=10000
+    p.LDDVD=3000
+  end
+  p=Landscapes.GetData(p)
+  
+  return p, Go(p)
 end
 
 function sim(T::Float64,p::par,x::Array{Float64,1},tr::Array{Float64,1})
@@ -193,6 +231,11 @@ end
 
 function connectivity(p::par)
   p.D=connectivity(p.XY,p.dispersalAlpha,p.dispersalC)
+  if p.LDDED>0.0
+    LDDf=Float64
+    LDDf=1/dispersal(p.LDDED,p.LDDVD,p.dispersalC)/p.seedPerBiomass
+    p.D=p.D+LDDf*connectivity(p.XY,p.LDDVD,p.dispersalC)
+  end
   return p.D
 end
 
@@ -254,12 +297,11 @@ S=zeros(Float64,p.NoSites,1)
 Dist=zeros(Float64,p.NoSpecies+1,1)
 N=zeros(Float64,p.NoSpecies+1,1)
 DS=zeros(Float64,p.NoSpecies,1)
-SM=Float64
+SM=0.0
 T=0.0
 t=max(tt,1)
   for i=1:p.NoSites
     M=0.0
-    #M=sum(X[t,:,i].*p.z')/sum(X[t,:,i])
     M=p.z[indmax(X[t,:,i])]
     T=T+sum(X[t,:,i])
     S[i,:]=M
@@ -280,7 +322,6 @@ t=max(tt,1)
   Dist[isnan(Dist)]=0.0 #some values that where zero get Nan, check
   T=T/p.NoSites
   reg=[p.XY[2,:];ones(Float64,p.NoSites,1)']'\S
-
   Xdist=collect(linspace(abs(p.sDist),100000.0,convert(Int64,(round(100000/abs(p.sDist))))))
   for j=1:length(Xdist)
     dp=dispersal(abs(Xdist[j]),p.dispersalAlpha,p.dispersalC)
@@ -288,8 +329,10 @@ t=max(tt,1)
       LDDf=1/dispersal(p.LDDED,p.LDDVD,p.dispersalC)/p.seedPerBiomass
       dp=dp+LDDf*dispersal(abs(Xdist[j]),p.LDDVD,p.dispersalC)
     end
+    if p.Poisson==0
+        dp=0.0
+    end
     SM=reg[2]+(p.sDist-Xdist[j])*reg[1]
-
     idm=indmin((p.z.-SM).^2)
     if p.z[max(1,idm)]>SM
       idm=max(1,idm-1)
@@ -300,7 +343,9 @@ t=max(tt,1)
       end
     end
   end
-  DS=DS/sum(DS)
+  if sum(DS)>0.0
+      DS=DS/sum(DS)
+  end
   return SM,T,Dist,DS
 end
 
@@ -314,3 +359,4 @@ function addSouthLDD(D,j,p)
 end
 
 end
+
